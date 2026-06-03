@@ -10,11 +10,17 @@ const firebaseConfig = {
   messagingSenderId: "971527147357",
   appId: "1:971527147357:web:1b116a07c5b6383927e2b4"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+
+
 const CATEGORIES = ["🥦 ירקות ופירות","🥩 בשר ודגים","🧀 מוצרי חלב","🥖 מאפים","🥫 מזון יבש","🧃 משקאות","🧴 ניקיון ובית","❄️ מוצרי קפוא","🍬 חטיפים","אחר"];
+const STORES = [
+  { name: "רמי לוי", emoji: "🔴", color: "#e74c3c" },
+  { name: "כורזין",  emoji: "🟢", color: "#27ae60" },
+  { name: "אחר",    emoji: "🛍️", color: "#8e44ad" },
+];
 const FAMILY_MEMBERS = ["קובי","מאיה","תותי","עומר","ג׳ון-ג׳ון"];
 const MEMBER_COLORS = {
   "קובי":       { bg: "#FF6B6B", shadow: "#c0392b", emoji: "🦁" },
@@ -37,9 +43,10 @@ export default function GroceryApp() {
   const [activeUser, setActiveUser] = useState("מאיה");
   const [filterCat, setFilterCat] = useState("הכל");
   const [filterMember, setFilterMember] = useState("הכל");
+  const [filterStore, setFilterStore] = useState("הכל");
   const [showChecked, setShowChecked] = useState(false);
   const [toast, setToast] = useState(null);
-  const [form, setForm] = useState({ name: "", qty: 1, unit: "יח׳", category: "🥦 ירקות ופירות", note: "" });
+  const [form, setForm] = useState({ name: "", qty: 1, unit: "יח׳", category: "🥦 ירקות ופירות", store: "רמי לוי", note: "" });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [popItem, setPopItem] = useState(null);
   const nameRef = useRef();
@@ -54,9 +61,9 @@ export default function GroceryApp() {
   }, []);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  const resetForm = () => setForm({ name: "", qty: 1, unit: "יח׳", category: "🥦 ירקות ופירות", note: "" });
+  const resetForm = () => setForm({ name: "", qty: 1, unit: "יח׳", category: "🥦 ירקות ופירות", store: "רמי לוי", note: "" });
   const openAdd = () => { resetForm(); setEditItem(null); setView("add"); setTimeout(() => nameRef.current?.focus(), 100); };
-  const openEdit = (item) => { setForm({ name: item.name, qty: item.qty, unit: item.unit, category: item.category, note: item.note || "" }); setEditItem(item); setView("edit"); setTimeout(() => nameRef.current?.focus(), 100); };
+  const openEdit = (item) => { setForm({ name: item.name, qty: item.qty, unit: item.unit, category: item.category, store: item.store || "רמי לוי", note: item.note || "" }); setEditItem(item); setView("edit"); setTimeout(() => nameRef.current?.focus(), 100); };
 
   const submitForm = async () => {
     if (!form.name.trim()) return;
@@ -94,6 +101,7 @@ export default function GroceryApp() {
     if (!showChecked && i.checked) return false;
     if (filterCat !== "הכל" && i.category !== filterCat) return false;
     if (filterMember !== "הכל" && i.addedBy !== filterMember) return false;
+    if (filterStore !== "הכל" && i.store !== filterStore) return false;
     return true;
   });
 
@@ -102,7 +110,6 @@ export default function GroceryApp() {
   const usedCategories = ["הכל", ...CATEGORIES.filter(c => items.some(i => i.category === c))];
   const usedMembers = ["הכל", ...FAMILY_MEMBERS.filter(m => items.some(i => i.addedBy === m))];
   const mc = MEMBER_COLORS[activeUser];
-
   const inputStyle = { width:"100%", padding:"13px 14px", borderRadius:14, border:"2px solid rgba(162,155,254,0.4)", background:"rgba(255,255,255,0.07)", fontSize:16, fontFamily:"inherit", color:"#fff", outline:"none", boxSizing:"border-box", textAlign:"right" };
 
   return (
@@ -113,7 +120,7 @@ export default function GroceryApp() {
       <div style={{ background:"linear-gradient(135deg,#6c5ce7,#a29bfe)", padding:"0 20px", position:"sticky", top:0, zIndex:100, boxShadow:"0 4px 20px rgba(108,92,231,0.5)", borderBottom:"3px solid #a29bfe" }}>
         <div style={{ maxWidth:600, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 0 8px" }}>
-            <div style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"4px 12px", fontSize:12, fontWeight:700 }}>{loading?"...":`${checkedCount}/${totalCount} ✓`}</div>
+            <div style={{ background:"rgba(255,255,255,0.15)", borderRadius:12, padding:"4px 12px", fontSize:12, fontWeight:700 }}>{checkedCount}/{totalCount} ✓</div>
             <div style={{ textAlign:"center" }}>
               <div style={{ fontSize:24, fontWeight:900, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>🛒 רשימת הקניות</div>
               <div style={{ fontSize:11, opacity:0.8, marginTop:1 }}>של משפחת פרוידנברגר 👨‍👩‍👧‍👦</div>
@@ -140,9 +147,7 @@ export default function GroceryApp() {
               {checkedCount>0 && <button onClick={clearChecked} style={{ background:"rgba(255,107,107,0.25)", border:"2px solid #ff6b6b", color:"#ff6b6b", fontSize:11, cursor:"pointer", fontFamily:"inherit", borderRadius:10, padding:"2px 10px", fontWeight:700 }}>🧹 נקה ({checkedCount})</button>}
             </div>
             <div style={{ height:14, background:"rgba(255,255,255,0.1)", borderRadius:10, overflow:"hidden", border:"2px solid rgba(255,255,255,0.15)" }}>
-              <div style={{ height:"100%", width:`${(checkedCount/totalCount)*100}%`, background:"linear-gradient(90deg,#55efc4,#00cec9,#6c5ce7)", borderRadius:10, transition:"width 0.5s cubic-bezier(.34,1.56,.64,1)", boxShadow:"0 0 10px #55efc4aa", position:"relative" }}>
-                {checkedCount>0 && <div style={{ position:"absolute", right:0, top:-1, width:16, height:16, borderRadius:"50%", background:"#fff", boxShadow:"0 0 8px #55efc4" }} />}
-              </div>
+              <div style={{ height:"100%", width:`${(checkedCount/totalCount)*100}%`, background:"linear-gradient(90deg,#55efc4,#00cec9,#6c5ce7)", borderRadius:10, transition:"width 0.5s cubic-bezier(.34,1.56,.64,1)", boxShadow:"0 0 10px #55efc4aa" }} />
             </div>
           </div>
         )}
@@ -156,9 +161,12 @@ export default function GroceryApp() {
             {usedMembers.map(m => { const c=MEMBER_COLORS[m]; const active=filterMember===m; return <button key={m} onClick={()=>setFilterMember(m)} style={{ whiteSpace:"nowrap", padding:"4px 10px", borderRadius:16, border:active?`2px solid ${c?.bg||"#fff"}`:"2px solid rgba(255,255,255,0.15)", background:active?(c?.bg||"#6c5ce7"):"rgba(255,255,255,0.07)", color:"#fff", fontSize:11, cursor:"pointer", fontFamily:"inherit", fontWeight:active?700:400, transition:"all 0.15s" }}>{c?`${c.emoji} `:""}{m}</button>; })}
             <button onClick={()=>setShowChecked(v=>!v)} style={{ whiteSpace:"nowrap", padding:"4px 10px", borderRadius:16, border:showChecked?"2px solid #55efc4":"2px solid rgba(255,255,255,0.15)", background:showChecked?"#00b894":"rgba(255,255,255,0.07)", color:"#fff", fontSize:11, cursor:"pointer", fontFamily:"inherit", fontWeight:showChecked?700:400 }}>✓ הצג גמורים</button>
           </div>
+          <div style={{ display:"flex", gap:6, flexDirection:"row-reverse", overflowX:"auto", paddingTop:4 }}>
+            {["הכל",...STORES.map(s=>s.name)].map(s => { const store=STORES.find(x=>x.name===s); const active=filterStore===s; return <button key={s} onClick={()=>setFilterStore(s)} style={{ whiteSpace:"nowrap", padding:"4px 12px", borderRadius:16, border:active?`2px solid ${store?.color||"#a29bfe"}`:"2px solid rgba(255,255,255,0.15)", background:active?(store?.color||"#6c5ce7"):"rgba(255,255,255,0.07)", color:"#fff", fontSize:11, cursor:"pointer", fontFamily:"inherit", fontWeight:active?700:400, transition:"all 0.15s" }}>{store?`${store.emoji} `:""}{s}</button>; })}
+          </div>
         </div>
 
-        {loading && <div style={{ textAlign:"center", padding:"60px 0", opacity:0.7 }}><div style={{ fontSize:40, animation:"float 1.5s infinite ease-in-out" }}>🛒</div><div style={{ fontSize:14, marginTop:12 }}>טוען רשימה...</div></div>}
+        {loading && <div style={{ textAlign:'center', padding:'60px 0', opacity:0.7 }}><div style={{ fontSize:40, animation:'float 1.5s infinite ease-in-out' }}>🛒</div><div style={{ fontSize:14, marginTop:12 }}>טוען רשימה...</div></div>}
         {!loading && filtered.length===0 && <div style={{ textAlign:"center", padding:"60px 0", opacity:0.6 }}><div style={{ fontSize:50, marginBottom:12, animation:"float 3s infinite ease-in-out" }}>🌌</div><div style={{ fontSize:16, fontWeight:700 }}>הרשימה ריקה — הוסיפו משהו!</div></div>}
 
         {!loading && filtered.length>0 && (
@@ -166,6 +174,7 @@ export default function GroceryApp() {
             {filtered.map(item => {
               const imc=MEMBER_COLORS[item.addedBy]||{bg:"#a29bfe",shadow:"#6c5ce7",emoji:"👤"};
               const isPop=popItem===item.id;
+              const storeInfo=STORES.find(s=>s.name===item.store);
               return (
                 <div key={item.id} style={{ background:item.checked?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.08)", borderRadius:18, padding:"14px 16px", border:item.checked?"2px solid rgba(255,255,255,0.08)":`2px solid ${imc.bg}55`, display:"flex", alignItems:"center", gap:12, opacity:item.checked?0.55:1, transition:"all 0.25s", boxShadow:item.checked?"none":`0 4px 16px ${imc.bg}22`, transform:isPop?"scale(1.03)":"scale(1)", backdropFilter:"blur(6px)" }}>
                   <div style={{ display:"flex", gap:6, flexShrink:0 }}>
@@ -179,7 +188,8 @@ export default function GroceryApp() {
                     </div>
                     <div style={{ display:"flex", gap:6, marginTop:6, flexWrap:"wrap", alignItems:"center" }}>
                       <span style={{ fontSize:11, opacity:0.6 }}>{item.category}</span>
-                      <span style={{ fontSize:11, color:"#fff", background:imc.bg, borderRadius:10, padding:"2px 8px", fontWeight:700, boxShadow:`0 2px 6px ${imc.bg}88` }}>{imc.emoji} {item.addedBy}</span>
+                      <span style={{ fontSize:11, color:"#fff", background:imc.bg, borderRadius:10, padding:"2px 8px", fontWeight:700 }}>{imc.emoji} {item.addedBy}</span>
+                      {storeInfo && <span style={{ fontSize:11, color:"#fff", background:storeInfo.color, borderRadius:10, padding:"2px 8px", fontWeight:700 }}>{storeInfo.emoji} {item.store}</span>}
                       {item.note && <span style={{ fontSize:11, opacity:0.55, fontStyle:"italic" }}>"{item.note}"</span>}
                     </div>
                   </div>
@@ -194,7 +204,7 @@ export default function GroceryApp() {
       {/* Add/Edit Overlay */}
       {(view==="add"||view==="edit") && (
         <div style={{ position:"fixed", inset:0, background:"rgba(15,12,41,0.85)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(4px)" }} onClick={e=>{if(e.target===e.currentTarget){setView("list");resetForm();}}}>
-          <div style={{ background:"linear-gradient(160deg,#1a1a3e,#2d2b55)", borderRadius:"28px 28px 0 0", padding:"24px 20px 44px", width:"100%", maxWidth:600, border:"2px solid rgba(162,155,254,0.3)", borderBottom:"none", boxShadow:"0 -8px 40px rgba(108,92,231,0.4)" }}>
+          <div style={{ background:"linear-gradient(160deg,#1a1a3e,#2d2b55)", borderRadius:"28px 28px 0 0", padding:"24px 20px 44px", width:"100%", maxWidth:600, border:"2px solid rgba(162,155,254,0.3)", borderBottom:"none", boxShadow:"0 -8px 40px rgba(108,92,231,0.4)", overflowY:"auto", maxHeight:"90vh" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <button onClick={()=>{setView("list");resetForm();}} style={{ background:"rgba(255,255,255,0.1)", border:"2px solid rgba(255,255,255,0.2)", borderRadius:12, width:36, height:36, cursor:"pointer", fontSize:20, color:"#fff" }}>×</button>
               <h2 style={{ margin:0, fontSize:20, color:"#fff", fontWeight:800 }}>{view==="edit"?"✏️ עריכת פריט":"⭐ הוספה לרשימה"}</h2>
@@ -212,6 +222,12 @@ export default function GroceryApp() {
                 <div style={{ flex:1 }}>
                   <label style={{ fontSize:11, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:6, textAlign:"right", fontWeight:700 }}>יחידה</label>
                   <input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} placeholder="יח׳, קג…" dir="rtl" style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:"rgba(255,255,255,0.6)", display:"block", marginBottom:6, textAlign:"right", fontWeight:700 }}>🏪 מקום קניה</label>
+                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                  {STORES.map(s => <button key={s.name} onClick={()=>setForm(f=>({...f,store:s.name}))} style={{ flex:1, padding:"10px 8px", borderRadius:14, fontSize:13, cursor:"pointer", border:form.store===s.name?`2px solid ${s.color}`:"2px solid rgba(255,255,255,0.15)", background:form.store===s.name?s.color:"rgba(255,255,255,0.07)", color:"#fff", fontFamily:"inherit", fontWeight:form.store===s.name?700:400, boxShadow:form.store===s.name?`0 0 12px ${s.color}88`:"none", transition:"all 0.2s" }}>{s.emoji}<br/>{s.name}</button>)}
                 </div>
               </div>
               <div>
@@ -240,7 +256,6 @@ export default function GroceryApp() {
         </div>
       )}
 
-      {/* Delete confirm */}
       {deleteConfirm && (
         <div style={{ position:"fixed", inset:0, background:"rgba(15,12,41,0.85)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:20, backdropFilter:"blur(4px)" }}>
           <div style={{ background:"linear-gradient(160deg,#2d1b1b,#3d1f1f)", borderRadius:20, padding:28, maxWidth:320, width:"100%", textAlign:"center", border:"2px solid rgba(255,107,107,0.3)" }}>
@@ -267,7 +282,7 @@ export default function GroceryApp() {
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
         @keyframes popUp{from{opacity:0;transform:translate(-50%,14px) scale(0.85)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
         *{-webkit-tap-highlight-color:transparent;}
-        input:focus{border-color:#a29bfe!important;box-shadow:0 0 0 3px rgba(162,155,254,0.2)!important;}
+        input:focus{border-color:#a29bfe!important;}
         ::-webkit-scrollbar{display:none;}
       `}</style>
     </div>
